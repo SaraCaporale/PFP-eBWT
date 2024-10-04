@@ -43,6 +43,8 @@ private:
     FILE *ebwt_file;
     FILE *I_file;
     FILE* nratio;
+
+    FILE *DA_file;
     
 public:
 
@@ -56,6 +58,8 @@ public:
     uint8_t head; // Head of the current run of BWT_T
     size_t start;
     size_t  length = 0; // Length of the current run of BWT_T
+
+    std::vector<uint64_t> Iperm{std::vector<uint64_t>(pars.rank_st(pars.b_st.size()), 0)}; // I vector permutated according to the input order of the strings
     
     inline bool is_valid(phrase_suffix_t& s)
     {
@@ -112,7 +116,7 @@ public:
         }
     }
     
-    inline void update_ebwt(uint8_t next_char, size_t length_, bool is_st, size_t ind, size_t st_pos)
+    inline void update_ebwt(uint8_t next_char, size_t length_, bool is_st, size_t ind, size_t st_pos, uint32_t next_DA)
     {
         if (head != next_char)
         {
@@ -125,12 +129,18 @@ public:
         
         ins_sofar += length_;
         length += length_;
+
+        if (fwrite(&next_DA, sizeof(next_DA), 1, DA_file) != 1)
+              error("DA file write error");
         
         if(is_st && st_pos > 0){
             if(pars.b_st[ind]==1){
                 if(pars.offset[(pars.rank_st(ind+1)-1)] == st_pos){
                     start = ins_sofar-1;
-                    if(fwrite(&start,sizeof(start),1,I_file)!=1) error("I file write error");
+                    //if(fwrite(&start,sizeof(start),1,I_file)!=1) error("I file write error");
+                    auto x = pars.rank_st(ind);
+                    auto y = pars.bstOrder[x];
+                    Iperm[y] = start;
                 }
             }
         }
@@ -151,6 +161,10 @@ public:
         std::string outfile = filename + std::string(".I");
         if((I_file = fopen(outfile.c_str(), "w")) == nullptr)
             error("open() file " + outfile + " failed");
+
+        outfile = filename + std::string(".da");
+        if ((DA_file = fopen(outfile.c_str(), "w")) == nullptr)
+          error("open() file " + outfile + " failed");
         
         if(rle)
         {    
@@ -195,7 +209,7 @@ public:
                     }                  
                 }
                 // Simple case
-                if (same_chars && !st_chars){
+               /* if (same_chars && !st_chars){
 
                     for (auto curr : same_suffix)
                     {
@@ -205,7 +219,7 @@ public:
                 }   
                 // Hard case
                 else
-                {       
+                {   */    
                     //suffix not starting with a character occurring at the beginning of 
                     // a input sequence
                     if(!st_chars){
@@ -224,7 +238,7 @@ public:
                         while(!pq.empty()){
                             auto curr_occ = pq.top();
                             pq.pop();
-                            update_ebwt(curr_occ.second.second, 1, 0, 0, 0);
+                            update_ebwt(curr_occ.second.second, 1, 0, 0, 0, pars.daP[*curr_occ.first]);
                             
                             // Update pq
                             curr_occ.first++;
@@ -249,7 +263,7 @@ public:
                         while(!tq.empty()){
                             auto curr_occ = tq.top();
                             tq.pop();
-                            update_ebwt(std::get<1>(curr_occ.second),1,1,std::get<2>(curr_occ.second),std::get<3>(curr_occ.second));
+                            update_ebwt(std::get<1>(curr_occ.second),1,1,std::get<2>(curr_occ.second),std::get<3>(curr_occ.second), pars.daP[*curr_occ.first]);
                             
                             // Update pq
                             curr_occ.first++;
@@ -259,7 +273,7 @@ public:
                         
                         }
                     }
-                }
+                //}
                 curr = next;
             }
             else
@@ -269,6 +283,13 @@ public:
         }
         // print last run
         print_ebwt();
+
+        //print I vector
+        for (auto e : Iperm) {
+            if (fwrite(&e, sizeof(e), 1, I_file) != 1)
+                error("I file write error");
+        }
+
         // close output files
         fclose(I_file);
         // close rle lengths file if rle was used

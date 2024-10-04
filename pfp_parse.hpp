@@ -23,6 +23,9 @@ public:
     sdsl::sd_vector<>::select_1_type select_ilist;
     sdsl::sd_vector<>::rank_1_type rank_st;
 
+    std::vector<uint_s> daP;
+    std::vector<uint_s> bstOrder;
+
   pfp_parse() {}
 
   pfp_parse(std::string filename)
@@ -41,6 +44,16 @@ public:
 
     rank_st = sdsl::sd_vector<>::rank_1_type(&b_st);
     select_ilist = sdsl::sd_vector<>::select_1_type(&b_il);
+
+    std::string inputDaP = filename + std::string(".dap");
+    std::ifstream inDaP(inputDaP);
+    my_load(daP,inDaP);
+    inDaP.close();
+
+    std::string inputBstOrder = filename + std::string(".bstOrder");
+    std::ifstream inBstOrder(inputBstOrder);
+    my_load(bstOrder ,inBstOrder);
+    inBstOrder.close();
     
   }
     

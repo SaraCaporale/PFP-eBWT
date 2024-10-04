@@ -35,6 +35,9 @@ public:
     bool saP_flag = false;
     bool ilP_flag = false;
 
+    std::vector<uint32_t> daP;
+    std::vector<uint_s> bstOrder; //for the i-th 1 in b_st, bst[i] tells us which input string it refers to
+
   // Default constructor for load
     parse() {}
     
@@ -67,6 +70,29 @@ public:
     build(saP_flag_, ilP_flag_);
     
     buildBitIl(); // build Inverted List
+
+    // build DA of ebwtP
+    createDaP();
+
+    //serialize daP
+    std::string outputDaP = filename + std::string(".dap");
+    std::ofstream outDaP(outputDaP);
+    my_serialize(daP, outDaP);
+    outDaP.close();
+
+    bstOrder.resize(rank_b_d(b_d.size())-1, 0);
+    size_t h = 0;
+    for (size_t i = 0; i < b_st.size(); i++) {
+        if (b_st[i] == 1) {
+            bstOrder[h] = rank_b_d(saP[ilP[i]]);
+            h++;
+        }
+    }
+    
+      std::string outputBstOrder = filename + std::string(".bstOrder");
+      std::ofstream outBstOrder(outputBstOrder);
+      my_serialize(bstOrder, outBstOrder);
+      outBstOrder.close();
 
     std::vector<uint32_t> temp(offset.size(),0);
     tmp_filename = filename + std::string(".offset");
@@ -205,6 +231,13 @@ public:
             uint_p cs = vec[i];
             uint_s index = count[cs]++;
             out[index] = i;
+        }
+    }
+
+    void createDaP() {
+        daP.resize(ilP.size());
+        for (size_t i = 0; i < ilP.size(); i++) {
+            daP[i] = rank_b_d(saP[i] + 1)-1;
         }
     }
     
