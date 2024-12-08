@@ -11,11 +11,11 @@
 
 #define BUFFERSIZE 1048576
 
-float distSigma(FILE * DA_file, int x, int y) {
+float distDelta(FILE * DA_file, int x, int y) {
 
-  uint64_t sigma=0, x_count=0, y_count=0; 
-  unsigned char curr, prev;
-  unsigned char* buff = new unsigned char[BUFFERSIZE];
+  uint64_t delta=0, x_count=0, y_count=0; 
+  uint32_t curr, prev;
+  uint32_t* buff = new uint32_t[BUFFERSIZE];
 
   size_t bytesReadDA=0;
   uint64_t n=0;
@@ -23,7 +23,7 @@ float distSigma(FILE * DA_file, int x, int y) {
 
 	uint64_t c_count=0;
 
-  bytesReadDA=fread(buff, sizeof(unsigned char), BUFFERSIZE, DA_file);
+  bytesReadDA=fread(buff, sizeof(uint32_t), BUFFERSIZE, DA_file);
   if (bytesReadDA<=0 && ! feof(DA_file)) {
     std::cerr << "Error reading from file." << std::endl;
     return -1;
@@ -40,23 +40,23 @@ float distSigma(FILE * DA_file, int x, int y) {
         if (curr == prev) {
           c_count++;
           } else {
-            if (c_count!=0) {sigma +=(c_count-1);}
+            if (c_count!=0) {delta +=(c_count-1);}
             c_count=1; 
             }
             prev=curr;
       }
     }
-    bytesReadDA=fread(buff, sizeof(unsigned char), BUFFERSIZE, DA_file);
+    bytesReadDA=fread(buff, sizeof(uint32_t), BUFFERSIZE, DA_file);
   }
 
-	sigma+=(c_count-1);
+	delta+=(c_count-1);
     
   if (!(feof(DA_file))) {
     std::cerr << "Error reading from file." << std::endl;
     return -1;
   }
 
-  return (float)sigma/(n-2);
+  return (float)delta/(n-2);
 }
 
 float distRho(FILE * ebwt_file, FILE * DA_file, int x, int y) {
@@ -66,8 +66,8 @@ float distRho(FILE * ebwt_file, FILE * DA_file, int x, int y) {
   char prevChar;
   char currChar;
   size_t bytesReadEBWT=0, bytesReadDA=0, i=0, j=0, z=0;
-  unsigned char currDA;
-  unsigned char* buffDA = new unsigned char[BUFFERSIZE];
+  uint32_t currDA;
+  uint32_t* buffDA = new uint32_t[BUFFERSIZE];
   char* buffEBWT = new char[BUFFERSIZE];
 
   bytesReadEBWT=fread(buffEBWT, sizeof(char), BUFFERSIZE, ebwt_file);
@@ -78,7 +78,7 @@ float distRho(FILE * ebwt_file, FILE * DA_file, int x, int y) {
 
   prevChar=buffEBWT[0];
 
-  bytesReadDA=fread(buffDA, sizeof(unsigned char), BUFFERSIZE, DA_file);
+  bytesReadDA=fread(buffDA, sizeof(uint32_t), BUFFERSIZE, DA_file);
   if (bytesReadDA<=0) {
     std::cerr << "Error reading from file." << std::endl;
     return -1;
@@ -93,7 +93,7 @@ float distRho(FILE * ebwt_file, FILE * DA_file, int x, int y) {
             if (currChar == prevChar) {
             if (currDA==x) {nx++;} else {ny++;}
             } else { //the current run ended
-            dp+=abs(nx-ny);
+            dp += (nx > ny) ? (nx - ny) : (ny - nx);
             prevChar=currChar;
             if (currDA==x) {nx=1; ny=0;} else {ny=1;nx=0;} 
             }
@@ -101,7 +101,7 @@ float distRho(FILE * ebwt_file, FILE * DA_file, int x, int y) {
         i++; j++;
     } 
     if (i==bytesReadDA) {
-        bytesReadDA=fread(buffDA, sizeof(unsigned char), BUFFERSIZE, DA_file);
+        bytesReadDA=fread(buffDA, sizeof(uint32_t), BUFFERSIZE, DA_file);
         i=0; 
     } else if (j==bytesReadEBWT){
         bytesReadEBWT=fread(buffEBWT, sizeof(char), BUFFERSIZE, ebwt_file);
@@ -109,7 +109,7 @@ float distRho(FILE * ebwt_file, FILE * DA_file, int x, int y) {
     }
   }
 
-  dp+=abs(nx-ny); //last run
+  dp += (nx > ny) ? (nx - ny) : (ny - nx); //last run
 
   if (ferror(DA_file) || ferror(ebwt_file)) {
     std::cerr << "Error reading from file." << std::endl;
@@ -123,14 +123,14 @@ float distRho(FILE * ebwt_file, FILE * DA_file, int x, int y) {
 float distBWSDm(FILE * DA_file, int x, int y) {
   std::map<uint64_t, uint64_t> m;
 
-  unsigned char prev;
+  uint32_t prev;
   int j=0;
-  unsigned char* buff = new unsigned char[BUFFERSIZE];
+  uint32_t* buff = new uint32_t[BUFFERSIZE];
   size_t i=0;
 
   size_t bytesReadDA=0;
-  unsigned char currDA;
-  while ((bytesReadDA=fread(&currDA, sizeof(unsigned char), 1, DA_file))>=1) { //first run
+  uint32_t currDA;
+  while ((bytesReadDA=fread(&currDA, sizeof(uint32_t), 1, DA_file))>=1) { //first run
     if (currDA == x || currDA == y) {
       break;
     }
@@ -146,7 +146,7 @@ float distBWSDm(FILE * DA_file, int x, int y) {
   uint64_t n=1;
   uint64_t s=1;
 
-  bytesReadDA=fread(buff, sizeof(unsigned char), BUFFERSIZE, DA_file);
+  bytesReadDA=fread(buff, sizeof(uint32_t), BUFFERSIZE, DA_file);
   if (bytesReadDA<=0 && !feof(DA_file)) {
     std::cerr << "Error reading from file." << std::endl;
     return -1;
@@ -173,7 +173,7 @@ float distBWSDm(FILE * DA_file, int x, int y) {
       i++;
     }
     i=0;
-    bytesReadDA=fread(buff, sizeof(unsigned char), BUFFERSIZE, DA_file);
+    bytesReadDA=fread(buff, sizeof(uint32_t), BUFFERSIZE, DA_file);
   }
 
   if (!(feof(DA_file))) {
@@ -200,14 +200,14 @@ float distBWSDm(FILE * DA_file, int x, int y) {
 float distBWSDe(FILE * DA_file, int x, int y) {
   std::map<uint64_t, uint64_t> m;
 
-  unsigned char prev;
+  uint32_t prev;
   int j=0;
-  unsigned char* buff = new unsigned char[BUFFERSIZE];
+  uint32_t* buff = new uint32_t[BUFFERSIZE];
   size_t i=0;
 
   size_t bytesReadDA=0;
-  unsigned char currDA;
-  while ((bytesReadDA=fread(&currDA, sizeof(unsigned char), 1, DA_file))>=1 ) { //first run
+  uint32_t currDA;
+  while ((bytesReadDA=fread(&currDA, sizeof(uint32_t), 1, DA_file))>=1 ) { //first run
     if (currDA == x || currDA == y) {
       break;
     }
@@ -222,7 +222,7 @@ float distBWSDe(FILE * DA_file, int x, int y) {
   int currRun=1; //first run
   uint64_t s=1;
 
-  bytesReadDA=fread(buff, sizeof(unsigned char), BUFFERSIZE, DA_file);
+  bytesReadDA=fread(buff, sizeof(uint32_t), BUFFERSIZE, DA_file);
   if (bytesReadDA<=0 && !feof(DA_file)) {
     std::cerr << "Error reading from file." << std::endl;
     return -1;
@@ -248,7 +248,7 @@ float distBWSDe(FILE * DA_file, int x, int y) {
       i++;
     }
     i=0;
-    bytesReadDA=fread(buff, sizeof(unsigned char), BUFFERSIZE, DA_file);
+    bytesReadDA=fread(buff, sizeof(uint32_t), BUFFERSIZE, DA_file);
   }
 
   if (!(feof(DA_file))) {
@@ -305,8 +305,8 @@ int calculate_distances(std::string flag, std::vector<std::string>labels, std::s
   for (int i=0; i<labels.size(); i++) {
     matrix [i][i]=0.00;
     for (int j=i+1; j<labels.size(); j++) {
-      if (flag == "-s") {
-        r=distSigma(DA_file, i, j);    
+      if (flag == "-d") {
+        r=distDelta(DA_file, i, j);    
       } else if (flag == "-r") {
         r=distRho(ebwt_file, DA_file, i, j);
         fseek(ebwt_file, 0, SEEK_SET);
@@ -379,13 +379,13 @@ std::vector<std::string> find_labels(std::string labels_filename) { //creates ve
 int main(int argc, char* argv[]) {
 
   if (argc < 4) {
-    std::cerr << "Usage: " << argv[0] << " [-s | -r | -m | -e] <labels file> <DA filename> <(only with -r) ebwt filename>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <-d | -r | -m | -e> labels_filename DA_filename [ebwt_filename (only with -r)]" << std::endl;
     return -1;
   }
 
   std::string flag = argv[1];
 
-  if ((flag != "-s") && (flag != "-r") && (flag != "-m") && (flag != "-e")) {
+  if ((flag != "-d") && (flag != "-r") && (flag != "-m") && (flag != "-e")) {
     std::cerr << "Invalid flag: " << flag << std::endl;
     return -1;
   }
